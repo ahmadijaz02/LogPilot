@@ -25,34 +25,48 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(raw) {
-        const parsed = credentialsSchema.safeParse(raw);
-        if (!parsed.success) return null;
+        try {
+          const parsed = credentialsSchema.safeParse(raw);
+          if (!parsed.success) {
+            console.error("Credentials validation failed:", parsed.error);
+            return null;
+          }
 
-        const user = await db
-          .selectFrom("User")
-          .selectAll()
-          .where("email", "=", parsed.data.email.toLowerCase())
-          .executeTakeFirst();
+          const user = await db
+            .selectFrom("User")
+            .selectAll()
+            .where("email", "=", parsed.data.email.toLowerCase())
+            .executeTakeFirst();
 
-        if (!user) return null;
+          if (!user) {
+            console.error("User not found:", parsed.data.email);
+            return null;
+          }
 
-        const valid = await bcrypt.compare(parsed.data.password, user.passwordHash);
-        if (!valid) return null;
+          const valid = await bcrypt.compare(parsed.data.password, user.passwordHash);
+          if (!valid) {
+            console.error("Password verification failed for:", parsed.data.email);
+            return null;
+          }
 
-        const driver = await db
-          .selectFrom("Driver")
-          .select("id")
-          .where("userId", "=", user.id)
-          .executeTakeFirst();
+          const driver = await db
+            .selectFrom("Driver")
+            .select("id")
+            .where("userId", "=", user.id)
+            .executeTakeFirst();
 
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          driverId: driver?.id ?? null,
-          carrierId: user.carrierId ?? null,
-        };
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            driverId: driver?.id ?? null,
+            carrierId: user.carrierId ?? null,
+          };
+        } catch (error) {
+          console.error("Auth error:", error);
+          return null;
+        }
       },
     }),
   ],
@@ -63,6 +77,7 @@ export const authOptions: NextAuthOptions = {
         token.role = user.role;
         token.driverId = user.driverId;
         token.carrierId = user.carrierId;
+        console.log("JWT callback - user signed in:", user.email);
       }
       return token;
     },
