@@ -1,0 +1,204 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Surfaces — warm neutral, near-white for a premium paper feel */
+    --background: 0 0% 100%;
+    --foreground: 224 24% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 224 24% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 24% 12%;
+
+    /* Brand — deep indigo/blue, confident and calm */
+    --primary: 231 62% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 224 20% 96%;
+    --secondary-foreground: 224 24% 20%;
+
+    --muted: 224 20% 96%;
+    --muted-foreground: 224 12% 46%;
+
+    --accent: 231 62% 96%;
+    --accent-foreground: 231 62% 40%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 58% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 12%;
+
+    --border: 224 18% 91%;
+    --input: 224 18% 90%;
+    --ring: 231 62% 55%;
+
+    /* FMCSA duty-status semantic colors */
+    --duty-off: 215 16% 47%;      /* Off Duty — slate */
+    --duty-sleeper: 262 52% 55%;  /* Sleeper Berth — violet */
+    --duty-driving: 231 62% 55%;  /* Driving — brand blue */
+    --duty-onduty: 32 95% 44%;    /* On Duty (Not Driving) — amber */
+
+    --radius: 0.75rem;
+
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", monospace;
+  }
+
+  .dark {
+    --background: 224 32% 6%;
+    --foreground: 220 20% 96%;
+
+    --card: 224 28% 9%;
+    --card-foreground: 220 20% 96%;
+
+    --popover: 224 30% 8%;
+    --popover-foreground: 220 20% 96%;
+
+    --primary: 231 70% 66%;
+    --primary-foreground: 224 40% 8%;
+
+    --secondary: 224 22% 15%;
+    --secondary-foreground: 220 20% 92%;
+
+    --muted: 224 22% 14%;
+    --muted-foreground: 220 12% 60%;
+
+    --accent: 231 40% 20%;
+    --accent-foreground: 231 70% 82%;
+
+    --destructive: 0 68% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 52% 48%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 56%;
+    --warning-foreground: 38 92% 10%;
+
+    --border: 224 20% 18%;
+    --input: 224 20% 20%;
+    --ring: 231 70% 66%;
+
+    --duty-off: 215 14% 58%;
+    --duty-sleeper: 262 58% 68%;
+    --duty-driving: 231 70% 66%;
+    --duty-onduty: 32 90% 56%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  }
+  ::selection {
+    @apply bg-primary/20;
+  }
+  /* Refined focus ring */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring/60 ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .glass {
+    @apply bg-background/70 backdrop-blur-xl backdrop-saturate-150;
+  }
+  .glass-strong {
+    @apply bg-background/85 backdrop-blur-2xl backdrop-saturate-150;
+  }
+  /* Subtle grain / gradient mesh helpers */
+  .bg-mesh {
+    background-image:
+      radial-gradient(at 0% 0%, hsl(var(--primary) / 0.06) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsl(var(--duty-sleeper) / 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, hsl(var(--primary) / 0.04) 0px, transparent 50%);
+  }
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.04),
+      transparent
+    );
+    animation: shimmer 1.6s infinite;
+  }
+  /* Numeric tabular figures for stat/counter readouts */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Custom scrollbar — subtle, premium */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.25);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.4);
+  background-clip: padding-box;
+}
+
+/* Print — official FMCSA log layout */
+@media print {
+  @page {
+    size: landscape;
+    margin: 0.5in;
+  }
+  body {
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}
+.print-only {
+  display: none;
+}
