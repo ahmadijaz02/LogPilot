@@ -1,5 +1,6 @@
-import type { Role } from "@prisma/client";
 import type { DefaultSession } from "next-auth";
+
+type Role = "DRIVER" | "FLEET_MANAGER";
 
 declare module "next-auth" {
   interface Session {

@@ -1,5 +1,5 @@
 import { requireManager } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/db";
 import { getCarrierDriverSummaries } from "@/lib/data/logs";
 import { FleetOverview } from "@/features/fleet/fleet-overview";
 
@@ -8,7 +8,11 @@ export const metadata = { title: "Fleet Overview" };
 export default async function FleetPage() {
   const user = await requireManager();
   const carrier = user.carrierId
-    ? await prisma.carrier.findUnique({ where: { id: user.carrierId } })
+    ? await db
+        .selectFrom("Carrier")
+        .selectAll()
+        .where("id", "=", user.carrierId)
+        .executeTakeFirst()
     : null;
   const summaries = user.carrierId ? await getCarrierDriverSummaries(user.carrierId) : [];
 

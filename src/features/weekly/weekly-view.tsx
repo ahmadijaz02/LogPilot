@@ -76,7 +76,7 @@ export function WeeklyView() {
             <TrendingUp className="h-4 w-4 text-primary" />
             <CardTitle>Rolling 70-Hour Cycle</CardTitle>
           </div>
-          <Badge variant={rolling.at(-1)!.cumulative > CYCLE_70_HOUR_MINUTES ? "destructive" : "success"}>
+          <Badge variant={rolling.length > 0 && rolling.at(-1)!.cumulative > CYCLE_70_HOUR_MINUTES ? "destructive" : "success"}>
             {formatHours((rolling.at(-1)?.cumulative ?? 0) / 60)} used
           </Badge>
         </CardHeader>

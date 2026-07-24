@@ -2,7 +2,8 @@
 
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { v4 as uuidv4 } from "uuid";
+import { db } from "@/lib/db";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Enter your full name"),
@@ -29,33 +30,51 @@ export async function registerDriverAction(
   }
   const { name, email, password, licenseNumber, licenseState } = parsed.data;
 
-  const existing = await prisma.user.findUnique({
-    where: { email: email.toLowerCase() },
-  });
+  const existing = await db
+    .selectFrom("User")
+    .selectAll()
+    .where("email", "=", email.toLowerCase())
+    .executeTakeFirst();
+
   if (existing) return { ok: false, error: "An account with this email already exists" };
 
-  // Attach to the first carrier so managers can see the driver (demo default).
-  const carrier = await prisma.carrier.findFirst({ orderBy: { createdAt: "asc" } });
-  const passwordHash = await bcrypt.hash(password, 10);
+  const carrier = await db
+    .selectFrom("Carrier")
+    .selectAll()
+    .orderBy("createdAt", "asc")
+    .limit(1)
+    .executeTakeFirst();
 
-  await prisma.user.create({
-    data: {
+  const passwordHash = await bcrypt.hash(password, 10);
+  const userId = uuidv4();
+  const driverId = uuidv4();
+
+  await db
+    .insertInto("User")
+    .values({
+      id: userId,
       name,
       email: email.toLowerCase(),
       passwordHash,
       role: "DRIVER",
-      carrierId: carrier?.id,
-      driver: {
-        create: {
-          licenseNumber: licenseNumber || "PENDING",
-          licenseState: licenseState || "—",
-          carrierId: carrier?.id,
-          homeTerminal: carrier?.homeTerminal,
-          mainOffice: carrier?.mainOffice,
-        },
-      },
-    },
-  });
+      carrierId: carrier?.id ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .execute();
+
+  await db
+    .insertInto("Driver")
+    .values({
+      id: driverId,
+      userId,
+      licenseNumber: licenseNumber || "PENDING",
+      licenseState: licenseState || "—",
+      carrierId: carrier?.id ?? null,
+      homeTerminal: carrier?.homeTerminal ?? null,
+      mainOffice: carrier?.mainOffice ?? null,
+    })
+    .execute();
 
   return { ok: true };
 }

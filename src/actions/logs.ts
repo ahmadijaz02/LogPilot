@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { v4 as uuidv4 } from "uuid";
+import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 import { DUTY_STATUSES } from "@/lib/fmcsa/constants";
 
@@ -18,7 +18,12 @@ async function requireDriverId(): Promise<string> {
 
 /** Assert the given log belongs to the driver. */
 async function assertOwnership(driverId: string, logId: string) {
-  const log = await prisma.dailyLog.findFirst({ where: { id: logId, driverId } });
+  const log = await db
+    .selectFrom("DailyLog")
+    .selectAll()
+    .where("id", "=", logId)
+    .where("driverId", "=", driverId)
+    .executeTakeFirst();
   if (!log) throw new Error("Log not found");
   return log;
 }
@@ -34,37 +39,68 @@ const segmentSchema = z.object({
 /** Create a new daily log for the current driver (defaults auto-filled). */
 export async function createLogAction(date?: string): Promise<string> {
   const driverId = await requireDriverId();
-  const driver = await prisma.driver.findUniqueOrThrow({
-    where: { id: driverId },
-    include: { user: { select: { name: true } }, carrier: true },
-  });
+  const driver = await db
+    .selectFrom("Driver")
+    .leftJoin("User", "Driver.userId", "User.id")
+    .leftJoin("Carrier", "Driver.carrierId", "Carrier.id")
+    .selectAll("Driver")
+    .select(["User.name", "Carrier.name as carrierName"])
+    .where("Driver.id", "=", driverId)
+    .executeTakeFirstOrThrow();
 
   const day = date ?? new Date().toISOString().slice(0, 10);
-  const existing = await prisma.dailyLog.findUnique({
-    where: { driverId_date: { driverId, date: day } },
-  });
+  const existing = await db
+    .selectFrom("DailyLog")
+    .select("id")
+    .where("driverId", "=", driverId)
+    .where("date", "=", day)
+    .executeTakeFirst();
+
   if (existing) return existing.id;
 
-  const log = await prisma.dailyLog.create({
-    data: {
+  const logId = uuidv4();
+  const entryId = uuidv4();
+
+  await db
+    .insertInto("DailyLog")
+    .values({
+      id: logId,
       driverId,
       date: day,
-      driverName: driver.user.name,
-      carrierName: driver.carrier?.name ?? "",
+      driverName: driver.name ?? "",
+      coDriverName: null,
+      carrierName: driver.carrierName ?? "",
       mainOffice: driver.mainOffice,
       homeTerminal: driver.homeTerminal,
       truckNumber: driver.truckNumber,
       trailerNumber: driver.trailerNumber,
-      cycle: driver.cycle,
+      shippingNumber: null,
+      commodity: null,
       totalMiles: 0,
-      entries: {
-        create: [{ status: "OFF", startMin: 0, endMin: 1440 }],
-      },
-    },
-  });
+      cycle: driver.cycle,
+      status: "DRAFT",
+      certified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .execute();
+
+  await db
+    .insertInto("DutyEntry")
+    .values({
+      id: entryId,
+      logId,
+      status: "OFF",
+      startMin: 0,
+      endMin: 1440,
+      location: null,
+      remark: null,
+    })
+    .execute();
+
   revalidatePath("/history");
   revalidatePath("/dashboard");
-  return log.id;
+  return logId;
 }
 
 /** Replace a log's duty-status timeline. */
@@ -76,20 +112,31 @@ export async function saveSegmentsAction(
   await assertOwnership(driverId, logId);
   const parsed = z.array(segmentSchema).parse(segments);
 
-  await prisma.$transaction([
-    prisma.dutyEntry.deleteMany({ where: { logId } }),
-    prisma.dutyEntry.createMany({
-      data: parsed.map((s) => ({
-        logId,
-        status: s.status,
-        startMin: s.startMin,
-        endMin: s.endMin,
-        location: s.location,
-        remark: s.remark,
-      })),
-    }),
-    prisma.dailyLog.update({ where: { id: logId }, data: { updatedAt: new Date() } }),
-  ]);
+  await db.deleteFrom("DutyEntry").where("logId", "=", logId).execute();
+
+  if (parsed.length > 0) {
+    await db
+      .insertInto("DutyEntry")
+      .values(
+        parsed.map((s) => ({
+          id: uuidv4(),
+          logId,
+          status: s.status as "OFF" | "SB" | "D" | "ON",
+          startMin: s.startMin,
+          endMin: s.endMin,
+          location: s.location ?? null,
+          remark: s.remark ?? null,
+        })),
+      )
+      .execute();
+  }
+
+  await db
+    .updateTable("DailyLog")
+    .set({ updatedAt: new Date() })
+    .where("id", "=", logId)
+    .execute();
+
   revalidatePath(`/log`);
 }
 
@@ -134,35 +181,58 @@ export async function saveLogAction(
   await assertOwnership(driverId, logId);
   const { header, segments, remarks } = fullSaveSchema.parse(payload);
 
-  const ops: Prisma.PrismaPromise<unknown>[] = [];
-
   if (header) {
-    ops.push(prisma.dailyLog.update({ where: { id: logId }, data: header }));
+    await db
+      .updateTable("DailyLog")
+      .set(header as Record<string, unknown>)
+      .where("id", "=", logId)
+      .execute();
   }
+
   if (segments) {
-    ops.push(prisma.dutyEntry.deleteMany({ where: { logId } }));
-    ops.push(
-      prisma.dutyEntry.createMany({
-        data: segments.map((s) => ({
-          logId,
-          status: s.status,
-          startMin: s.startMin,
-          endMin: s.endMin,
-          location: s.location,
-          remark: s.remark,
-        })),
-      }),
-    );
-  }
-  if (remarks) {
-    ops.push(prisma.remark.deleteMany({ where: { logId } }));
-    if (remarks.length) {
-      ops.push(prisma.remark.createMany({ data: remarks.map((r) => ({ logId, ...r })) }));
+    await db.deleteFrom("DutyEntry").where("logId", "=", logId).execute();
+    if (segments.length > 0) {
+      await db
+        .insertInto("DutyEntry")
+        .values(
+          segments.map((s) => ({
+            id: uuidv4(),
+            logId,
+            status: s.status as "OFF" | "SB" | "D" | "ON",
+            startMin: s.startMin,
+            endMin: s.endMin,
+            location: s.location ?? null,
+            remark: s.remark ?? null,
+          })),
+        )
+        .execute();
     }
   }
-  ops.push(prisma.dailyLog.update({ where: { id: logId }, data: { updatedAt: new Date() } }));
 
-  await prisma.$transaction(ops);
+  if (remarks) {
+    await db.deleteFrom("Remark").where("logId", "=", logId).execute();
+    if (remarks.length > 0) {
+      await db
+        .insertInto("Remark")
+        .values(
+          remarks.map((r) => ({
+            id: uuidv4(),
+            logId,
+            timeMin: r.timeMin,
+            location: r.location,
+            note: r.note ?? null,
+          })),
+        )
+        .execute();
+    }
+  }
+
+  await db
+    .updateTable("DailyLog")
+    .set({ updatedAt: new Date() })
+    .where("id", "=", logId)
+    .execute();
+
   revalidatePath("/history");
   revalidatePath("/dashboard");
 }
@@ -189,7 +259,11 @@ export async function updateHeaderAction(
   const driverId = await requireDriverId();
   await assertOwnership(driverId, logId);
   const data = headerSchema.parse(patch);
-  await prisma.dailyLog.update({ where: { id: logId }, data });
+  await db
+    .updateTable("DailyLog")
+    .set(data as Record<string, unknown>)
+    .where("id", "=", logId)
+    .execute();
   revalidatePath(`/log`);
 }
 
@@ -206,14 +280,27 @@ export async function addRemarkAction(
   const driverId = await requireDriverId();
   await assertOwnership(driverId, logId);
   const data = remarkSchema.parse(remark);
-  await prisma.remark.create({ data: { logId, ...data } });
+  await db
+    .insertInto("Remark")
+    .values({
+      id: uuidv4(),
+      logId,
+      timeMin: data.timeMin,
+      location: data.location,
+      note: data.note ?? null,
+    })
+    .execute();
   revalidatePath(`/log`);
 }
 
 export async function removeRemarkAction(logId: string, remarkId: string) {
   const driverId = await requireDriverId();
   await assertOwnership(driverId, logId);
-  await prisma.remark.deleteMany({ where: { id: remarkId, logId } });
+  await db
+    .deleteFrom("Remark")
+    .where("id", "=", remarkId)
+    .where("logId", "=", logId)
+    .execute();
   revalidatePath(`/log`);
 }
 
@@ -221,10 +308,11 @@ export async function removeRemarkAction(logId: string, remarkId: string) {
 export async function certifyLogAction(logId: string) {
   const driverId = await requireDriverId();
   await assertOwnership(driverId, logId);
-  await prisma.dailyLog.update({
-    where: { id: logId },
-    data: { certified: true, status: "CERTIFIED" },
-  });
+  await db
+    .updateTable("DailyLog")
+    .set({ certified: true, status: "CERTIFIED" })
+    .where("id", "=", logId)
+    .execute();
   revalidatePath("/history");
   revalidatePath("/dashboard");
   revalidatePath("/log");
@@ -233,7 +321,7 @@ export async function certifyLogAction(logId: string) {
 export async function deleteLogAction(logId: string) {
   const driverId = await requireDriverId();
   await assertOwnership(driverId, logId);
-  await prisma.dailyLog.delete({ where: { id: logId } });
+  await db.deleteFrom("DailyLog").where("id", "=", logId).execute();
   revalidatePath("/history");
   revalidatePath("/dashboard");
 }
@@ -241,11 +329,19 @@ export async function deleteLogAction(logId: string) {
 /** Duplicate a log's structure into a new draft (undated collision-safe). */
 export async function duplicateLogAction(logId: string): Promise<string> {
   const driverId = await requireDriverId();
-  const source = await prisma.dailyLog.findFirst({
-    where: { id: logId, driverId },
-    include: { entries: true, remarks: true, shippingDocs: true },
-  });
+  const source = await db
+    .selectFrom("DailyLog")
+    .selectAll()
+    .where("id", "=", logId)
+    .where("driverId", "=", driverId)
+    .executeTakeFirst();
+
   if (!source) throw new Error("Log not found");
+
+  const [entries, remarks] = await Promise.all([
+    db.selectFrom("DutyEntry").selectAll().where("logId", "=", logId).execute(),
+    db.selectFrom("Remark").selectAll().where("logId", "=", logId).execute(),
+  ]);
 
   // Find the next free date (source date + 1..N days) to satisfy the unique key.
   let day = source.date;
@@ -253,17 +349,23 @@ export async function duplicateLogAction(logId: string): Promise<string> {
     const d = new Date(source.date);
     d.setDate(d.getDate() + i);
     const candidate = d.toISOString().slice(0, 10);
-    const clash = await prisma.dailyLog.findUnique({
-      where: { driverId_date: { driverId, date: candidate } },
-    });
+    const clash = await db
+      .selectFrom("DailyLog")
+      .select("id")
+      .where("driverId", "=", driverId)
+      .where("date", "=", candidate)
+      .executeTakeFirst();
     if (!clash) {
       day = candidate;
       break;
     }
   }
 
-  const copy = await prisma.dailyLog.create({
-    data: {
+  const copyId = uuidv4();
+  await db
+    .insertInto("DailyLog")
+    .values({
+      id: copyId,
       driverId,
       date: day,
       driverName: source.driverName,
@@ -279,26 +381,45 @@ export async function duplicateLogAction(logId: string): Promise<string> {
       cycle: source.cycle,
       status: "DRAFT",
       certified: false,
-      entries: {
-        create: source.entries.map((e) => ({
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .execute();
+
+  if (entries.length > 0) {
+    await db
+      .insertInto("DutyEntry")
+      .values(
+        entries.map((e) => ({
+          id: uuidv4(),
+          logId: copyId,
           status: e.status,
           startMin: e.startMin,
           endMin: e.endMin,
           location: e.location,
           remark: e.remark,
         })),
-      },
-      remarks: {
-        create: source.remarks.map((r) => ({
+      )
+      .execute();
+  }
+
+  if (remarks.length > 0) {
+    await db
+      .insertInto("Remark")
+      .values(
+        remarks.map((r) => ({
+          id: uuidv4(),
+          logId: copyId,
           timeMin: r.timeMin,
           location: r.location,
           note: r.note,
         })),
-      },
-    },
-  });
+      )
+      .execute();
+  }
+
   revalidatePath("/history");
-  return copy.id;
+  return copyId;
 }
 
 const profileSchema = z.object({
@@ -317,6 +438,10 @@ const profileSchema = z.object({
 export async function updateProfileAction(patch: z.infer<typeof profileSchema>) {
   const driverId = await requireDriverId();
   const data = profileSchema.parse(patch);
-  await prisma.driver.update({ where: { id: driverId }, data });
+  await db
+    .updateTable("Driver")
+    .set(data as Record<string, unknown>)
+    .where("id", "=", driverId)
+    .execute();
   revalidatePath("/profile");
 }

@@ -1,14 +1,21 @@
-import type { Prisma } from "@prisma/client";
 import type { CycleType } from "@/lib/fmcsa/constants";
 import type { DailyLog } from "@/lib/fmcsa/types";
+import type {
+  DailyLogTable,
+  DutyEntryTable,
+  RemarkTable,
+  ShippingDocTable,
+} from "@/lib/db";
 
-/** A Prisma DailyLog with all relations needed to build a domain log. */
-export type PrismaLogWithRelations = Prisma.DailyLogGetPayload<{
-  include: { entries: true; remarks: true; shippingDocs: true };
-}>;
+/** A DailyLog with all relations needed to build a domain log. */
+export type LogWithRelations = DailyLogTable & {
+  entries: DutyEntryTable[];
+  remarks: RemarkTable[];
+  shippingDocs: ShippingDocTable[];
+};
 
-/** Map a persisted Prisma log into the domain `DailyLog` used by the engine. */
-export function toDomainLog(log: PrismaLogWithRelations): DailyLog {
+/** Map a persisted log into the domain `DailyLog` used by the engine. */
+export function toDomainLog(log: LogWithRelations): DailyLog {
   return {
     id: log.id,
     header: {

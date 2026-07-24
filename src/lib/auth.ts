@@ -2,7 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { db } from "@/lib/db";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -10,7 +10,7 @@ const credentialsSchema = z.object({
 });
 
 /**
- * NextAuth (credentials) configuration. Email/password auth backed by Prisma,
+ * NextAuth (credentials) configuration. Email/password auth backed by Kysely,
  * JWT sessions, with the driver's role, driverId and carrierId carried on the
  * token for role-based access control.
  */
@@ -28,21 +28,29 @@ export const authOptions: NextAuthOptions = {
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email.toLowerCase() },
-          include: { driver: { select: { id: true } } },
-        });
+        const user = await db
+          .selectFrom("User")
+          .selectAll()
+          .where("email", "=", parsed.data.email.toLowerCase())
+          .executeTakeFirst();
+
         if (!user) return null;
 
         const valid = await bcrypt.compare(parsed.data.password, user.passwordHash);
         if (!valid) return null;
+
+        const driver = await db
+          .selectFrom("Driver")
+          .select("id")
+          .where("userId", "=", user.id)
+          .executeTakeFirst();
 
         return {
           id: user.id,
           name: user.name,
           email: user.email,
           role: user.role,
-          driverId: user.driver?.id ?? null,
+          driverId: driver?.id ?? null,
           carrierId: user.carrierId ?? null,
         };
       },
