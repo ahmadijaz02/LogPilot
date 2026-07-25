@@ -101,11 +101,13 @@ export const db =
     dialect: new PostgresDialect({
       pool: new Pool({
         connectionString: process.env.DATABASE_URL,
-        max: 20,
-        idleTimeoutMillis: 30000,
+        // Serverless: every warm instance keeps its own pool, and the Supabase
+        // pooler caps total clients. Keep this tiny so N instances stay under it.
+        max: 3,
+        idleTimeoutMillis: 10000,
         connectionTimeoutMillis: 10000,
       }),
     }),
   });
 
-if (process.env.NODE_ENV !== "production") globalForKysely.db = db;
+globalForKysely.db = db;
