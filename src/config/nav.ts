@@ -7,6 +7,7 @@ import {
   BarChart3,
   FileText,
   Truck,
+  Building2,
   UserRound,
   Settings,
   Users,
@@ -43,8 +44,10 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Fleet Manager",
     items: [
       { title: "Fleet Overview", href: "/fleet", icon: Users, roles: ["FLEET_MANAGER"] },
+      { title: "Manage Drivers", href: "/fleet/drivers", icon: UserRound, roles: ["FLEET_MANAGER"] },
       { title: "Analytics", href: "/fleet/analytics", icon: BarChart3, roles: ["FLEET_MANAGER"] },
       { title: "Reports", href: "/fleet/reports", icon: FileText, roles: ["FLEET_MANAGER"] },
+      { title: "Carrier Settings", href: "/fleet/settings", icon: Building2, roles: ["FLEET_MANAGER"] },
     ],
   },
   {

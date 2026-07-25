@@ -16,11 +16,17 @@ import { SignaturePad } from "./signature-pad";
 import { ROLE_LABELS } from "@/config/nav";
 import { initials } from "@/lib/utils";
 
-function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+function Field({ label, value, onChange, placeholder, readOnly }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; readOnly?: boolean }) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
-      <Input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+      <Input
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => !readOnly && onChange(e.target.value)}
+        readOnly={readOnly}
+        className={readOnly ? "bg-muted cursor-not-allowed" : ""}
+      />
     </div>
   );
 }
@@ -100,19 +106,18 @@ export function ProfileView() {
               <CardDescription>These fields auto-fill new daily logs.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Driver Name" value={draft.driverName} onChange={set("driverName")} />
-              <Field label="Co-Driver" value={draft.coDriverName} onChange={set("coDriverName")} placeholder="None" />
+              <Field label="Driver Name" value={draft.driverName} onChange={set("driverName")} readOnly />
+              <Field label="Carrier" value={draft.carrierName} onChange={set("carrierName")} readOnly />
               <Field label="License Number" value={draft.licenseNumber} onChange={set("licenseNumber")} />
               <Field label="License State" value={draft.licenseState} onChange={set("licenseState")} />
-              <Field label="Carrier" value={draft.carrierName} onChange={set("carrierName")} />
-              <Field label="Timezone" value={draft.timezone} onChange={set("timezone")} />
-              <Field label="Truck / Tractor #" value={draft.truckNumber} onChange={set("truckNumber")} />
-              <Field label="Trailer #" value={draft.trailerNumber} onChange={set("trailerNumber")} />
+              <Field label="Timezone" value={draft.timezone} onChange={set("timezone")} placeholder="e.g., America/Chicago" />
+              <Field label="Truck / Tractor #" value={draft.truckNumber} onChange={set("truckNumber")} placeholder="e.g., TR-001" />
+              <Field label="Trailer #" value={draft.trailerNumber} onChange={set("trailerNumber")} placeholder="e.g., TRL-001" />
               <div className="sm:col-span-2">
-                <Field label="Home Terminal Address" value={draft.homeTerminalAddress} onChange={set("homeTerminalAddress")} />
+                <Field label="Home Terminal Address" value={draft.homeTerminalAddress} onChange={set("homeTerminalAddress")} placeholder="e.g., 456 Logistics Blvd, Dallas, TX" />
               </div>
               <div className="sm:col-span-2">
-                <Field label="Main Office Address" value={draft.mainOfficeAddress} onChange={set("mainOfficeAddress")} />
+                <Field label="Main Office Address" value={draft.mainOfficeAddress} onChange={set("mainOfficeAddress")} placeholder="e.g., 123 Commerce Ave, Atlanta, GA" />
               </div>
             </CardContent>
           </Card>

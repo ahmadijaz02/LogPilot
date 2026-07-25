@@ -74,7 +74,7 @@ export async function registerDriverAction(
       homeTerminal: carrier?.homeTerminal ?? null,
       mainOffice: carrier?.mainOffice ?? null,
       timezone: "UTC",
-      cycle: "70_08",
+      cycle: "70/8",
     })
     .execute();
 
