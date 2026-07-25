@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn, getSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -51,10 +51,9 @@ function PasswordInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
-async function routeByRole(router: ReturnType<typeof useRouter>) {
-  const session = await getSession();
-  router.push(session?.user?.role === "FLEET_MANAGER" ? "/fleet" : "/dashboard");
-  router.refresh();
+function routeByRole(router: ReturnType<typeof useRouter>, userRole?: string) {
+  const isManager = userRole === "FLEET_MANAGER";
+  router.push(isManager ? "/fleet" : "/dashboard");
 }
 
 const loginSchema = z.object({
@@ -86,7 +85,7 @@ export function LoginForm() {
       return;
     }
     toast.success("Welcome back", { description: "Signed in to LogPilot." });
-    await routeByRole(router);
+    routeByRole(router);
   };
 
   const fill = (email: string) => {

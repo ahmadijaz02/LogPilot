@@ -1,9 +1,24 @@
+import { Suspense } from "react";
 import { requireUser } from "@/lib/session";
 import { AppShell } from "@/components/shell/app-shell";
 import { AppData } from "@/components/app-data";
 import { getDriverLogs } from "@/lib/data/logs";
 import { getDriverProfile } from "@/lib/data/driver";
 import { toInitials, type ShellUser } from "@/lib/shell-user";
+
+async function DriverDataProvider({
+  driverId,
+  children,
+}: {
+  driverId: string;
+  children: React.ReactNode;
+}) {
+  const [logs, profile] = await Promise.all([
+    getDriverLogs(driverId),
+    getDriverProfile(driverId),
+  ]);
+  return <AppData logs={logs} profile={profile}>{children}</AppData>;
+}
 
 export default async function AppGroupLayout({
   children,
@@ -18,19 +33,17 @@ export default async function AppGroupLayout({
     initials: toInitials(user.name ?? "U"),
   };
 
-  if (user.role === "DRIVER" && user.driverId) {
-    const [logs, profile] = await Promise.all([
-      getDriverLogs(user.driverId),
-      getDriverProfile(user.driverId),
-    ]);
-    return (
-      <AppShell user={shellUser}>
-        <AppData logs={logs} profile={profile}>
-          {children}
-        </AppData>
-      </AppShell>
-    );
-  }
-
-  return <AppShell user={shellUser}>{children}</AppShell>;
+  return (
+    <AppShell user={shellUser}>
+      {user.role === "DRIVER" && user.driverId ? (
+        <Suspense fallback={null}>
+          <DriverDataProvider driverId={user.driverId}>
+            {children}
+          </DriverDataProvider>
+        </Suspense>
+      ) : (
+        children
+      )}
+    </AppShell>
+  );
 }

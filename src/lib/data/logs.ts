@@ -13,16 +13,42 @@ export async function getDriverLogs(driverId: string): Promise<DailyLog[]> {
     .orderBy("date", "desc")
     .execute();
 
-  const logsWithRelated = await Promise.all(
-    logs.map(async (log) => {
-      const entries = await db.selectFrom("DutyEntry").selectAll().where("logId", "=", log.id).execute();
-      const remarks = await db.selectFrom("Remark").selectAll().where("logId", "=", log.id).execute();
-      const shippingDocs = await db.selectFrom("ShippingDoc").selectAll().where("logId", "=", log.id).execute();
-      return { ...log, entries, remarks, shippingDocs };
+  // Batch load related records instead of N+1 queries
+  const logIds = logs.map((l) => l.id);
+  if (logIds.length === 0) return [];
+
+  const [entries, remarks, shippingDocs] = await Promise.all([
+    db.selectFrom("DutyEntry").selectAll().where("logId", "in", logIds).execute(),
+    db.selectFrom("Remark").selectAll().where("logId", "in", logIds).execute(),
+    db.selectFrom("ShippingDoc").selectAll().where("logId", "in", logIds).execute(),
+  ]);
+
+  // Create index maps for O(1) lookup
+  const entriesMap = new Map<string, typeof entries>();
+  const remarksMap = new Map<string, typeof remarks>();
+  const docsMap = new Map<string, typeof shippingDocs>();
+
+  entries.forEach((e) => {
+    if (!entriesMap.has(e.logId)) entriesMap.set(e.logId, []);
+    entriesMap.get(e.logId)!.push(e);
+  });
+  remarks.forEach((r) => {
+    if (!remarksMap.has(r.logId)) remarksMap.set(r.logId, []);
+    remarksMap.get(r.logId)!.push(r);
+  });
+  shippingDocs.forEach((d) => {
+    if (!docsMap.has(d.logId)) docsMap.set(d.logId, []);
+    docsMap.get(d.logId)!.push(d);
+  });
+
+  return logs.map((log) =>
+    toDomainLog({
+      ...log,
+      entries: entriesMap.get(log.id) ?? [],
+      remarks: remarksMap.get(log.id) ?? [],
+      shippingDocs: docsMap.get(log.id) ?? [],
     }),
   );
-
-  return logsWithRelated.map(toDomainLog);
 }
 
 /** A single log owned by the given driver (ownership enforced). */

@@ -50,6 +50,8 @@
 
     --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", monospace;
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
+      "Times New Roman", serif;
   }
 
   .dark {
@@ -161,6 +163,159 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* ——— Luxury layer ——— */
+
+  /* Serif display face for editorial headlines */
+  .font-display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.015em;
+  }
+
+  /* Small-caps eyebrow labels */
+  .eyebrow {
+    @apply text-[0.6875rem] font-medium uppercase text-muted-foreground;
+    letter-spacing: 0.22em;
+  }
+
+  /* Brand gradient text — indigo into violet */
+  .text-foil {
+    background-image: linear-gradient(
+      100deg,
+      hsl(var(--primary)) 0%,
+      hsl(var(--duty-sleeper)) 55%,
+      hsl(var(--primary)) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Hairline rule that fades at both ends */
+  .rule-fade {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--border)) 20%,
+      hsl(var(--border)) 80%,
+      transparent
+    );
+  }
+
+  /* Fine film grain — keeps large dark surfaces from banding */
+  .bg-grain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.4;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+  }
+
+  /* Layered aurora — slow-breathing brand light pools behind the hero */
+  .bg-aurora {
+    background-image:
+      radial-gradient(
+        ellipse 70% 55% at 50% -10%,
+        hsl(var(--primary) / 0.16),
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse 45% 45% at 12% 12%,
+        hsl(var(--duty-sleeper) / 0.13),
+        transparent 65%
+      ),
+      radial-gradient(
+        ellipse 45% 45% at 88% 18%,
+        hsl(var(--primary) / 0.12),
+        transparent 65%
+      ),
+      radial-gradient(
+        ellipse 60% 40% at 50% 100%,
+        hsl(var(--duty-sleeper) / 0.08),
+        transparent 70%
+      );
+    background-size: 160% 160%;
+    animation: aurora 24s ease-in-out infinite alternate;
+  }
+  @keyframes aurora {
+    from {
+      background-position: 0% 0%;
+    }
+    to {
+      background-position: 100% 40%;
+    }
+  }
+
+  /* Soft edge darkening so content sits in a pool of light */
+  .vignette {
+    background: radial-gradient(
+      ellipse 80% 70% at 50% 40%,
+      transparent 40%,
+      hsl(var(--background) / 0.85) 100%
+    );
+  }
+
+  /* Faint architectural grid */
+  .bg-grid {
+    background-image:
+      linear-gradient(hsl(var(--foreground) / 0.028) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--foreground) / 0.028) 1px, transparent 1px);
+    background-size: 72px 72px;
+  }
+
+  /* Card with an inset light edge — the "polished metal" feel */
+  .surface-lux {
+    @apply relative rounded-2xl border border-border/60 bg-card;
+    box-shadow:
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.5),
+      0 1px 2px 0 rgb(0 0 0 / 0.04),
+      0 12px 32px -16px rgb(0 0 0 / 0.18);
+  }
+  .dark .surface-lux {
+    box-shadow:
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.06),
+      0 12px 40px -20px rgb(0 0 0 / 0.8);
+  }
+
+  /* Slow ambient drift for hero light pools */
+  .animate-drift {
+    animation: drift 18s ease-in-out infinite alternate;
+  }
+  @keyframes drift {
+    from {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+      transform: translate3d(3%, -4%, 0) scale(1.12);
+    }
+  }
+
+  /* Staggered entrance */
+  .animate-rise {
+    animation: rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-drift,
+    .animate-rise,
+    .bg-aurora {
+      animation: none;
+    }
   }
 }
 
