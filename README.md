@@ -1,181 +1,154 @@
 <div align="center">
 
-# 🛡️ LogPilot
+# LogPilot
 
-### The paper FMCSA Driver's Daily Log, reimagined.
+Digital FMCSA Driver Daily Log
 
-A premium, compliance-first **Hours of Service (HOS)** platform that replaces the paper
-Driver's Daily Log with a live, beautiful web application — an interactive duty-status
-timeline, a pixel-faithful official log graph, and a real-time FMCSA validation engine.
+A clean, fast web app for drivers and fleet managers to track Hours of Service compliance.
 
-`Next.js 15` · `React 19` · `TypeScript` · `Tailwind CSS` · `Framer Motion` · `Chart.js` · `Prisma`
+**[Live Demo](https://logpilot-teal.vercel.app/)** · `Next.js 15` · `React 19` · `Tailwind CSS` · `PostgreSQL`
 
 </div>
 
 ---
 
-## ✨ Overview
+## What it does
 
-LogPilot turns the [FMCSA Record of Duty Status](https://www.fmcsa.dot.gov/regulations/hours-service)
-into an interactive experience. Every edit to the duty timeline instantly recalculates the
-driver's Hours of Service and re-checks all eight core rules of **49 CFR Part 395** — never
-silently allowing a violation.
+LogPilot replaces the paper driver daily log with a web interface. Drivers can view their daily logs, create new ones, and track their hours. Fleet managers get a dashboard to monitor their drivers' compliance and hours across the fleet.
 
-It's built to feel like a commercial SaaS product: lots of whitespace, rounded corners,
-subtle gradients, glassmorphism, meaningful motion, dark mode, keyboard shortcuts and a
-command palette.
+The app calculates Hours of Service (HOS) in real time and checks for violations against federal regulations. It's built on Next.js with PostgreSQL and NextAuth for credentials-based sign in.
 
-## 🚀 Feature Highlights
+## Features for Drivers
 
-### The Daily Log (core feature)
-- **Interactive timeline** — drag to *paint* a duty status, drag dividers to *resize*, click
-  a block to *split*, change status or *remove* it. Full undo / redo. Every action snaps to
-  15-minute increments and recalculates instantly.
-- **Official FMCSA graph** — an SVG replica of the paper log's 24-hour, 4-line grid with
-  per-status totals, rendered black-on-white and **print / PDF ready**.
-- **Live HOS clocks** — radial gauges for the 11-hour, 14-hour, 30-minute and 70-hour limits.
-- **Header fields, remarks & totals** — all required log fields, location-anchored remarks,
-  and automatic status totals that always tile a full 24 hours.
-- **Certification** — electronic sign-off per § 395.8(a) with a signature pad.
+- **Daily Log** — see a day's activities laid out in a timeline. Track your hours across different duty statuses (off duty, sleeper berth, driving, on duty not driving).
+- **Dashboard** — quick overview of today's hours, violations, and compliance status.
+- **Weekly View** — see your entire week at a glance with rolling 70-hour cycle tracking.
+- **History** — browse your past logs, with search and filtering.
+- **Analytics** — charts showing driving trends, hours worked, and compliance over time.
+- **Reports** — export your logs as PDF or CSV.
+- **Profile & Settings** — manage your driver info, license number, timezone, and cycle preference.
 
-### FMCSA HOS Engine (`src/lib/fmcsa/`)
-A pure, fully-typed, framework-agnostic engine implementing:
+## Features for Fleet Managers
 
-| Rule | Regulation | Implemented |
-|------|-----------|:-----------:|
-| 11-Hour Driving Limit | § 395.3(a)(3)(i) | ✅ |
-| 14-Hour Driving Window | § 395.3(a)(2) | ✅ |
-| 30-Minute Break | § 395.3(a)(3)(ii) | ✅ |
-| 10-Hour Reset | § 395.3(a)(1) | ✅ |
-| 60/70-Hour Cycle | § 395.3(b) | ✅ |
-| 34-Hour Restart | § 395.3(c) | ✅ |
-| Sleeper-Berth pairing | § 395.1(g) | ✅ |
-| Timeline gaps / overlaps | § 395.8(a) | ✅ |
+- **Driver Roster** — see all your drivers in one place. Quick view of who's active, idle, or in violation.
+- **Driver Details** — drill into a specific driver to see their logs, hours, and compliance history.
+- **Logs** — review any driver's logs with the same detail a driver sees.
+- **Fleet Analytics** — company-wide compliance and hours trends (Chart.js charts).
+- **Fleet Reports** — export all driver logs and data.
+- **Carrier Settings** — manage your fleet's configuration and driver roster.
 
-Every detected issue becomes an **explainable violation** with a title, plain-language
-explanation, the exact CFR citation, severity, and a concrete "how to fix" suggestion —
-surfaced in the **Violation Center**.
+## Tech Stack
 
-### The rest of the product
-- **Dashboard** — overview cards (today's hours, driving, remaining drive/window, 70-hour
-  cycle, current status, compliance score), weekly summary, violations, recent activity.
-- **Weekly View** — every day's mini-graph, rolling 70-hour cycle chart, weekly totals.
-- **History** — searchable, filterable, sortable log archive with duplicate / archive / delete.
-- **Analytics** — driving trends, hours worked, duty distribution and compliance (Chart.js).
-- **Reports** — PDF / print, CSV, JSON and monthly-summary export.
-- **Fleet Manager** — driver roster, live status, per-driver compliance and violations.
-- **Admin** — users, role-based permissions matrix, audit logs, system settings.
-- **Profile & Settings** — driver identity, signature pad, theme, cycle and notifications.
-- **Auth** — sign in / up, forgot / reset password, remember me, role switching (Driver /
-  Fleet Manager / Admin).
+- **Frontend** — React 19, TypeScript, Tailwind CSS, Shadcn UI (Radix + CVA)
+- **Backend** — Next.js 15 App Router, API routes with Zod validation
+- **Database** — PostgreSQL, Kysely ORM
+- **Auth** — NextAuth credentials provider with role-based access control
+- **State** — Zustand (client-side), server components for data fetching
+- **UI Extras** — Framer Motion (animations), Chart.js (charts), Sonner (toasts)
 
-### Craft details
-Command palette (`⌘K`), global search, notifications, theme toggle (light / dark / system),
-skeleton loading states, beautiful empty & error states, 404, keyboard shortcuts, tooltips,
-context menus, micro-interactions everywhere, and full responsive / mobile layouts.
-
-## 🏗️ Architecture
+## Project structure
 
 ```
 src/
-├── app/                      # Next.js App Router
-│   ├── (app)/                # Authenticated shell (sidebar + topbar)
-│   │   ├── dashboard/  log/  weekly/  history/
-│   │   ├── analytics/ reports/ fleet/ admin/ profile/ settings/
-│   │   ├── layout.tsx  loading.tsx  error.tsx
-│   ├── (auth)/               # login / register / forgot / reset
-│   ├── api/logs/             # Validated, paginated REST route handler
-│   ├── page.tsx              # Marketing landing page
-│   └── globals.css           # Design tokens (light + dark)
+├── app/                    # Next.js routes
+│   ├── (app)/              # Authenticated pages (drivers & managers)
+│   │   ├── dashboard/      # Driver dashboard
+│   │   ├── log/            # Daily log view
+│   │   ├── weekly/         # Weekly summary
+│   │   ├── history/        # Past logs archive
+│   │   ├── analytics/      # Charts and trends
+│   │   ├── reports/        # Export & download
+│   │   ├── profile/        # Driver profile
+│   │   ├── settings/       # Preferences
+│   │   ├── fleet/          # Fleet manager dashboard
+│   │   └── layout.tsx      # App shell (sidebar + topbar)
+│   ├── (auth)/             # Login, register, password reset
+│   ├── api/                # API routes for data fetching
+│   └── page.tsx            # Landing page
 ├── components/
-│   ├── ui/                   # shadcn-style primitives (Radix + CVA)
-│   ├── shell/                # Sidebar, Topbar, Command menu, Logo
-│   ├── charts/               # Chart.js setup + weekly bars
-│   └── shared/               # PageHeader, StatCard, EmptyState
-├── features/                 # Feature modules (log, dashboard, fleet, …)
+│   ├── ui/                 # Radix + Tailwind components (button, card, etc)
+│   ├── shell/              # Sidebar, topbar, command menu
+│   └── features/           # Domain-specific components
 ├── lib/
-│   ├── fmcsa/                # ★ HOS engine: constants, calculations, validation
-│   ├── export.ts             # CSV / JSON download helpers
-│   └── utils.ts
-├── hooks/  stores/  config/  # useHos, Zustand stores, nav config
-prisma/                       # Prisma schema + seed (production data layer)
-server/                       # Prisma client + NextAuth options (production)
+│   ├── db.ts               # Kysely database setup
+│   ├── auth.ts             # NextAuth configuration
+│   ├── session.ts          # Session helpers
+│   └── data/               # Data fetching (drivers, logs, etc)
+├── stores/                 # Zustand (client state)
+├── hooks/                  # Custom React hooks
+└── config/                 # Constants and config
 ```
 
-**Design system** — Three-tier tokens (HSL CSS variables → Tailwind theme → components),
-semantic duty-status colors, custom shadows/radii, tabular numerics, glassmorphism utilities.
+Uses PostgreSQL for data, Kysely for queries, and NextAuth for auth. Client state lives in Zustand stores, server fetches via Server Components.
 
-**State** — The live demo persists to a typed **Zustand** store (localStorage) so the timeline,
-graph and validation work instantly with zero setup. The production data layer (Prisma +
-PostgreSQL) and auth (NextAuth credentials + RBAC) are fully specified in `prisma/` and
-`server/` — see *Enabling the database* below.
-
-## 🧑‍💻 Getting Started
+## Getting started
 
 ```bash
-# 1. Install dependencies
+# Install dependencies
 npm install
 
-# 2. Configure environment
-cp .env.example .env        # sensible SQLite defaults already provided
+# Set up environment
+cp .env.example .env
 
-# 3. Run the dev server
-npm run dev                 # → http://localhost:3000
+# Run the dev server
+npm run dev
 ```
 
-The app ships with a realistic week of demo logs for driver **Marcus Bennett**. On the login
-screen, any email + password (6+ chars) signs you in (demo mode).
+Open `http://localhost:3000` and log in with demo credentials from the login page.
 
-### Scripts
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start the development server |
-| `npm run build` | Production build |
-| `npm run start` | Serve the production build |
-| `npm run lint` | ESLint |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run db:push` / `db:seed` / `db:studio` | Prisma (see below) |
+### Database setup
 
-## 🗄️ Enabling the Database (production path)
+You'll need a PostgreSQL database. Create a `.env` file with:
 
-The demo runs entirely client-side. To switch to the real Prisma + NextAuth backend:
-
-1. Set `DATABASE_URL` in `.env` (SQLite works out of the box; for production point it at a
-   **Neon / Railway PostgreSQL** URL and set `provider = "postgresql"` in `prisma/schema.prisma`).
-2. Move `server/prisma.ts` → `src/lib/prisma.ts` and `server/auth.ts` → `src/lib/auth.ts`,
-   add the NextAuth route handler (snippet included in `server/auth.ts`).
-3. Generate & migrate:
-   ```bash
-   npm run db:generate
-   npm run db:push
-   npm run db:seed        # demo accounts, password: logpilot
-   ```
-
-The Prisma schema models Users, Accounts/Sessions (NextAuth), Carriers, Drivers, Vehicles,
-DailyLogs, DutyEntries, Remarks, ShippingDocs, Violations, Notifications and AuditLogs.
-
-## 🔒 Security & Quality
-- Strict TypeScript (`strict` + `noUncheckedIndexedAccess`), zero `any` in domain code.
-- Zod validation on every form (React Hook Form) and the REST API (params + typed errors).
-- Passwords hashed with bcrypt; NextAuth JWT sessions with role-aware callbacks (RBAC).
-- Next.js pinned to a CVE-patched release; no `poweredBy` header; secrets via env vars.
-- SOLID, reusable components — cards, tables, charts, forms and the HOS engine are all
-  decoupled and independently testable.
-
-## 🚢 Deployment
-Deploy the app to **Vercel** and the database to **Neon** or **Railway**. Set `DATABASE_URL`,
-`NEXTAUTH_SECRET` and `NEXTAUTH_URL` in the project's environment variables.
-
-## 📋 REST API
-
-```http
-GET /api/logs?page=1&pageSize=10&sort=driving&order=desc&status=certified&q=denver
 ```
-Returns paginated, filtered, sorted logs with per-log totals, compliance score and violation
-count. Validates every parameter with Zod and returns typed `400` / `500` errors.
+DATABASE_URL="postgresql://user:password@localhost:5432/logpilot"
+NEXTAUTH_SECRET="your-secret-key-here"
+```
 
----
+Then set up the database:
 
-<div align="center">
-<sub>Built to the letter of 49 CFR Part 395 — designed to feel effortless.</sub>
-</div>
+```bash
+npx kysely migrate latest
+npm run db:seed  # creates demo accounts (password: logpilot)
+```
+
+Demo accounts:
+- `driver@ridgeline.co` (driver)
+- `manager@ridgeline.co` (fleet manager)
+
+### Commands
+
+```bash
+npm run dev          # Dev server
+npm run build        # Production build
+npm run start        # Serve prod build
+npm run typecheck    # TypeScript check
+```
+
+## Development notes
+
+- **TypeScript** — strict mode, no `any` in the app
+- **Validation** — Zod on forms (React Hook Form) and API routes
+- **Auth** — NextAuth with credentials provider, JWT sessions, role-based middleware
+- **Styling** — Tailwind CSS with custom design tokens for duty statuses
+- **State** — Zustand for client state (logs, active log, profile), Server Components for server state
+- **Database** — Kysely ORM with PostgreSQL
+- **Errors** — custom error handling and 404 pages throughout
+
+## Deployment
+
+Deployed on Vercel with PostgreSQL on Neon or Railway. Set these env vars:
+
+- `DATABASE_URL` — PostgreSQL connection string
+- `NEXTAUTH_SECRET` — random secret for JWT signing
+- `NEXTAUTH_URL` — your domain (https://yourdomain.com)
+
+## Contributing
+
+The main areas are:
+
+- Driver pages live in `src/app/(app)/dashboard/`, `src/app/(app)/log/`, etc
+- Fleet manager pages are under `src/app/(app)/fleet/`
+- Data queries are in `src/lib/data/`
+- Components are in `src/components/`
+- Styling tokens are in `src/app/globals.css`
