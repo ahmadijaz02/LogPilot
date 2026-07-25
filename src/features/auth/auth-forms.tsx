@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -51,9 +51,14 @@ function PasswordInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
-function routeByRole(router: ReturnType<typeof useRouter>, userRole?: string) {
-  const isManager = userRole === "FLEET_MANAGER";
-  router.push(isManager ? "/fleet" : "/dashboard");
+/**
+ * Leaves the auth pages with a full document load rather than a soft push.
+ * The client Router Cache is populated while signed out (middleware answers
+ * prefetches of /dashboard with a redirect to /login), so a soft navigation
+ * right after sign-in can resolve against those stale entries and never land.
+ */
+function enterApp(userRole?: string) {
+  window.location.assign(userRole === "FLEET_MANAGER" ? "/fleet" : "/dashboard");
 }
 
 const loginSchema = z.object({
@@ -63,7 +68,6 @@ const loginSchema = z.object({
 });
 
 export function LoginForm() {
-  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -80,12 +84,13 @@ export function LoginForm() {
       password: data.password,
       redirect: false,
     });
-    if (res?.error) {
+    if (!res?.ok || res.error) {
       toast.error("Sign in failed", { description: "Invalid email or password." });
       return;
     }
+    const session = await getSession();
     toast.success("Welcome back", { description: "Signed in to LogPilot." });
-    routeByRole(router);
+    enterApp(session?.user?.role);
   };
 
   const fill = (email: string) => {
@@ -196,10 +201,18 @@ export function RegisterForm() {
       toast.error("Could not create account", { description: result.error });
       return;
     }
-    await signIn("credentials", { email: data.email, password: data.password, redirect: false });
+    const res = await signIn("credentials", {
+      email: data.email,
+      password: data.password,
+      redirect: false,
+    });
+    if (!res?.ok || res.error) {
+      toast.error("Account created", { description: "Please sign in to continue." });
+      router.push("/login");
+      return;
+    }
     toast.success("Account created", { description: "Welcome to LogPilot." });
-    router.push("/dashboard");
-    router.refresh();
+    enterApp();
   };
 
   return (
